@@ -1,0 +1,6 @@
+streamlit
+Pillow
+google-cloud-vision
+google-auth
+opencv-python-headless
+numpy 
