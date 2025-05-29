@@ -10,6 +10,11 @@ import cv2
 from google.cloud import vision
 from google.oauth2 import service_account
 
+# Import our template system
+import sys
+sys.path.append('.')
+from templates.template_model import TemplateManager, ReceiptTemplate
+
 def setup_google_vision():
     """Initialize Google Vision client with specific credentials"""
     try:
@@ -97,8 +102,21 @@ def draw_bounding_boxes(image_bytes, text_annotations):
         st.error(f"Error drawing bounding boxes: {str(e)}")
         return None
 
-def extract_structured_data(text):
-    """Extract structured data from receipt text"""
+def extract_structured_data_with_templates(text, template_manager):
+    """Extract structured data using vendor templates first, fallback to generic parsing"""
+    
+    # Try template-based parsing first
+    template_result = template_manager.parse_receipt(text)
+    
+    if template_result.get('template_match'):
+        # Template found and matched
+        return template_result
+    
+    # Fallback to generic parsing if no template matches
+    return extract_structured_data_generic(text)
+
+def extract_structured_data_generic(text):
+    """Generic structured data extraction (original logic)"""
     if not text:
         return None
     
@@ -115,7 +133,8 @@ def extract_structured_data(text):
         'subtotal': None,
         'tax': None,
         'total': None,
-        'payment_method': None
+        'payment_method': None,
+        'template_match': False
     }
     
     # Patterns for different data types
@@ -245,8 +264,15 @@ def main():
     )
     
     # App title
-    st.title("🧾 Receipt Scanner with Google Vision OCR")
+    st.title("🧾 Receipt Scanner with Vendor Templates")
     st.markdown("---")
+    
+    # Initialize template manager
+    @st.cache_resource
+    def load_template_manager():
+        return TemplateManager()
+    
+    template_manager = load_template_manager()
     
     # Initialize Google Vision client
     vision_client = setup_google_vision()
@@ -270,8 +296,20 @@ def main():
             """)
         return
     
-    # Show connection status
-    st.success("✅ Connected to Google Vision API (Project: pg-cashback)")
+    # Show connection status and templates info
+    col1, col2 = st.columns(2)
+    with col1:
+        st.success("✅ Connected to Google Vision API (Project: pg-cashback)")
+    with col2:
+        templates = template_manager.get_all_templates()
+        st.info(f"📋 {len(templates)} vendor templates loaded")
+    
+    # Display available templates
+    if templates:
+        with st.expander("🏪 Available Vendor Templates"):
+            template_names = [t['name'] for t in templates]
+            st.write("**Supported Vendors:** " + ", ".join(template_names))
+            st.caption("Receipts from these vendors will be parsed with enhanced accuracy using specialized templates.")
     
     # File upload section
     st.subheader("Upload Receipt Image")
@@ -317,7 +355,12 @@ def main():
                         st.session_state.extracted_text = extracted_text
                         st.session_state.text_annotations = text_annotations
                         st.session_state.analysis = analyze_receipt_text(extracted_text)
-                        st.session_state.structured_data = extract_structured_data(extracted_text)
+                        
+                        # Use template-based parsing
+                        with st.spinner("Applying vendor templates..."):
+                            st.session_state.structured_data = extract_structured_data_with_templates(
+                                extracted_text, template_manager
+                            )
                         
                         # Create the visualization image with bounding boxes
                         if text_annotations:
@@ -342,10 +385,19 @@ def main():
             # Display results if available
             if hasattr(st.session_state, 'extracted_text') and st.session_state.extracted_text:
                 st.markdown("---")
+                
+                # Show template match status
+                if hasattr(st.session_state, 'structured_data') and st.session_state.structured_data:
+                    if st.session_state.structured_data.get('template_match'):
+                        vendor_name = st.session_state.structured_data.get('vendor', 'Unknown')
+                        st.success(f"🎯 **Template Match Found:** {vendor_name} - Enhanced parsing applied!")
+                    else:
+                        st.info("ℹ️ No vendor template matched - using generic parsing")
+                
                 st.subheader("📄 Extracted Text")
                 
                 # Create tabs for different views
-                tab1, tab2, tab3 = st.tabs(["Raw Text", "Analysis", "Structured Data"])
+                tab1, tab2, tab3, tab4 = st.tabs(["Raw Text", "Analysis", "Structured Data", "Template Management"])
                 
                 with tab1:
                     st.text_area(
@@ -389,36 +441,52 @@ def main():
                     if hasattr(st.session_state, 'structured_data') and st.session_state.structured_data:
                         structured = st.session_state.structured_data
                         
+                        # Template match indicator
+                        if structured.get('template_match'):
+                            st.success(f"✨ **Enhanced parsing using {structured.get('vendor', 'vendor')} template**")
+                        else:
+                            st.info("📝 **Using generic parsing (no template match)**")
+                        
                         st.markdown("### 🏪 Store Information")
                         col1, col2 = st.columns(2)
                         
                         with col1:
-                            if structured['store_name']:
+                            if structured.get('store_name'):
                                 st.write(f"**Store Name:** {structured['store_name']}")
-                            if structured['store_address']:
+                            if structured.get('store_address'):
                                 st.write(f"**Address:** {structured['store_address']}")
-                            if structured['phone_number']:
+                            if structured.get('phone_number'):
                                 st.write(f"**Phone:** {structured['phone_number']}")
+                            # Show additional vendor-specific fields
+                            if structured.get('store_number'):
+                                st.write(f"**Store Number:** {structured['store_number']}")
+                            if structured.get('membership_number'):
+                                st.write(f"**Membership #:** {structured['membership_number']}")
                         
                         with col2:
-                            if structured['date']:
+                            if structured.get('date'):
                                 st.write(f"**Date:** {structured['date']}")
-                            if structured['time']:
+                            if structured.get('time'):
                                 st.write(f"**Time:** {structured['time']}")
-                            if structured['receipt_number']:
+                            if structured.get('receipt_number'):
                                 st.write(f"**Receipt #:** {structured['receipt_number']}")
+                            if structured.get('vendor_id'):
+                                st.write(f"**Template Used:** {structured['vendor_id']}")
                         
                         st.markdown("---")
                         
                         # Items
-                        if structured['items']:
+                        if structured.get('items'):
                             st.markdown("### 🛒 Items")
                             items_df_data = []
                             for item in structured['items']:
-                                items_df_data.append({
+                                row_data = {
                                     'Item': item['name'],
                                     'Price': item['price']
-                                })
+                                }
+                                if 'quantity' in item and item['quantity'] != "1":
+                                    row_data['Quantity'] = item['quantity']
+                                items_df_data.append(row_data)
                             st.dataframe(items_df_data, use_container_width=True)
                         
                         st.markdown("---")
@@ -428,22 +496,46 @@ def main():
                         total_col1, total_col2, total_col3 = st.columns(3)
                         
                         with total_col1:
-                            if structured['subtotal']:
+                            if structured.get('subtotal'):
                                 st.metric("Subtotal", structured['subtotal'])
                         
                         with total_col2:
-                            if structured['tax']:
+                            if structured.get('tax'):
                                 st.metric("Tax", structured['tax'])
                         
                         with total_col3:
-                            if structured['total']:
+                            if structured.get('total'):
                                 st.metric("Total", structured['total'])
                         
-                        if structured['payment_method']:
+                        if structured.get('payment_method'):
                             st.write(f"**Payment Method:** {structured['payment_method']}")
                     
                     else:
                         st.info("📊 Upload and analyze a receipt to see structured data extraction!")
+                
+                with tab4:
+                    st.markdown("### 🔧 Template Management")
+                    
+                    # Show current templates
+                    st.markdown("#### Current Templates:")
+                    for template in template_manager.get_all_templates():
+                        st.write(f"• **{template['name']}** (ID: {template['id']})")
+                    
+                    st.markdown("---")
+                    st.markdown("#### Test Template Matching")
+                    
+                    if hasattr(st.session_state, 'extracted_text'):
+                        matched_template = template_manager.find_matching_template(st.session_state.extracted_text)
+                        if matched_template:
+                            st.success(f"✅ **Matched Template:** {matched_template.vendor_name}")
+                            st.write(f"**Vendor ID:** {matched_template.vendor_id}")
+                            st.write(f"**Recognition Patterns:** {[p.pattern for p in matched_template.recognition_patterns]}")
+                        else:
+                            st.warning("❌ **No Template Match** - Receipt did not match any available templates")
+                            st.info("💡 This receipt would benefit from a custom template for improved accuracy.")
+                    
+                    st.markdown("---")
+                    st.info("🚀 **Template Features:**\n- Automatic vendor detection\n- Enhanced item parsing\n- Improved accuracy for known formats\n- Extensible template system")
                 
                 # Download options
                 st.markdown("---")
@@ -522,7 +614,7 @@ def main():
         # Explain the features
         with st.expander("🔍 What does this app do?"):
             st.markdown("""
-            **This Receipt Scanner provides three levels of analysis:**
+            **This Receipt Scanner provides advanced vendor-specific parsing:**
             
             **1. 📄 Raw Text Tab:**
             - Shows the complete text extracted from your receipt
@@ -533,19 +625,28 @@ def main():
             - Provides metrics and quick insights
             
             **3. 🗂️ Structured Data Tab:**
-            - **Intelligent parsing** of receipt components
+            - **Intelligent vendor-specific parsing** using templates
             - **Store Information:** Name, address, phone number
             - **Transaction Details:** Date, time, receipt number
             - **Itemized List:** Individual products and prices in a table
             - **Financial Summary:** Subtotal, tax, and total amounts
             - **Payment Method:** How the transaction was paid
+            - **Enhanced Accuracy:** Better results for supported vendors
             
-            **4. 🔍 OCR Visualization:**
+            **4. 🔧 Template Management:**
+            - View available vendor templates
+            - See which template matched your receipt
+            - Test template matching functionality
+            
+            **5. 🔍 OCR Visualization:**
             - Shows all detected text with bounding boxes
             - Displays text labels for each detected area
             - Helps verify the accuracy of text recognition
             
-            The structured data extraction uses advanced pattern recognition to automatically organize receipt information into a standardized format, perfect for expense tracking, accounting, or integration with other systems.
+            **🎯 Vendor Templates Supported:**
+            - Walmart, Target, Costco, Kroger (and affiliated stores)
+            - Enhanced parsing accuracy for these vendors
+            - Automatic vendor detection and specialized field extraction
             """)
 
 if __name__ == "__main__":

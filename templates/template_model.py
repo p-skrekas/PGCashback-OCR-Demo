@@ -76,6 +76,52 @@ class ReceiptTemplate:
                 return True
         return False
     
+    def is_excluded_line(self, line: str) -> bool:
+        """Check if a line should be excluded from item parsing."""
+        line_lower = line.lower().strip()
+        
+        # Exclude common non-item patterns
+        exclusion_patterns = [
+            r'(?:sub)?total',
+            r'tax',
+            r'balance',
+            r'amount\s+(?:due|paid)',
+            r'change',
+            r'cash',
+            r'credit',
+            r'debit',
+            r'visa',
+            r'mastercard',
+            r'master\s+card',
+            r'amex',
+            r'american\s+express',
+            r'discover',
+            r'ebt',
+            r'redcard',
+            r'payment',
+            r'tender',
+            r'ref\s*[#:]',
+            r'tc\s*[#:]',
+            r'receipt\s*[#:]',
+            r'thank\s+you',
+            r'savings',
+            r'discount',
+            r'member',
+            r'store\s*[#:]',
+            r'warehouse\s*[#:]',
+            r'cashier',
+            r'register',
+            r'lane',
+            r'^$',  # Empty lines
+            r'^\s*[*\-=]+\s*$',  # Lines with only symbols
+        ]
+        
+        for pattern in exclusion_patterns:
+            if re.search(pattern, line_lower):
+                return True
+        
+        return False
+    
     def extract_data(self, text: str) -> Dict[str, Any]:
         """Extract structured data from the receipt text using this template."""
         lines = text.strip().split('\n')
@@ -135,22 +181,28 @@ class ReceiptTemplate:
                     result['receipt_number'] = match.group(1).strip() if match.groups() else line.strip()
                     break
         
-        # Extract items
+        # Extract items with improved filtering
         if self.item_pattern:
             for line in lines:
+                # Skip lines that should be excluded
+                if self.is_excluded_line(line):
+                    continue
+                
                 match = self.item_pattern.search(line)
                 if match and len(match.groups()) >= 2:
                     item_name = match.group(1).strip()
                     item_price = match.group(2).strip()
                     
-                    # Optional quantity if available
-                    quantity = match.group(3).strip() if len(match.groups()) >= 3 and match.group(3) else "1"
-                    
-                    result['items'].append({
-                        'name': item_name,
-                        'price': item_price,
-                        'quantity': quantity
-                    })
+                    # Additional filtering for item names
+                    if len(item_name) > 2 and not self.is_excluded_line(item_name):
+                        # Optional quantity if available
+                        quantity = match.group(3).strip() if len(match.groups()) >= 3 and match.group(3) else "1"
+                        
+                        result['items'].append({
+                            'name': item_name,
+                            'price': item_price,
+                            'quantity': quantity
+                        })
         
         # Extract total amounts
         if self.subtotal_pattern:

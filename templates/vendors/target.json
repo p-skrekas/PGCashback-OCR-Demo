@@ -2,14 +2,16 @@
   "vendor_id": "target",
   "vendor_name": "Target",
   "recognition_patterns": [
-    "target",
-    "expect more\\. pay less"
+    "^\\s*target\\s*$",
+    "target\\s+corporation",
+    "expect more\\. pay less",
+    "circle\\s+rewards"
   ],
   "header_patterns": {
     "store_name": "target",
     "store_number": "store\\s*#?\\s*(T?\\d+)"
   },
-  "item_pattern": "^(.+?)\\s+(?:\\d+)\\s+(\\$?\\d+\\.\\d{2})\\s*$",
+  "item_pattern": "^\\s*(.+?)\\s+(?:\\d{12,14})?\\s+(\\$?\\d+\\.\\d{2})\\s*$",
   "total_pattern": "total\\s*(?:\\w+\\s+)?(?:\\w+\\s+)?[:\\*]?\\s*(\\$?\\d+\\.\\d{2})",
   "subtotal_pattern": "subtotal\\s*(?:\\w+\\s+)?[:\\*]?\\s*(\\$?\\d+\\.\\d{2})",
   "tax_pattern": "(?:sales tax|tax)\\s*(?:\\w+\\s+)?[:\\*]?\\s*(\\$?\\d+\\.\\d{2})",
