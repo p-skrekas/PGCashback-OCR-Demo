@@ -28,8 +28,13 @@ def setup_google_vision():
             credentials_path = "pg-cashback-5290642eb30b.json"
             
             if not os.path.exists(credentials_path):
-                st.error(f"Credentials file not found: {credentials_path}")
-                st.info("For local development, ensure your Google Cloud credentials file is present.")
+                # Check if we're in a cloud environment (no local file expected)
+                if 'streamlit' in str(os.environ.get('HOME', '')).lower() or 'app' in str(os.environ.get('HOME', '')).lower():
+                    st.error("Streamlit secrets not configured properly")
+                    st.info("Please configure Google Cloud credentials in the app secrets.")
+                else:
+                    st.error("Local development: Credentials file not found")
+                    st.info("For local development, ensure your Google Cloud credentials file is present.")
                 return None
             
             # Create credentials from the service account file
@@ -44,7 +49,10 @@ def setup_google_vision():
         
     except Exception as e:
         st.error(f"Error initializing Google Vision client: {str(e)}")
-        st.info("Please ensure your Google Cloud credentials are properly configured.")
+        if hasattr(st, 'secrets') and 'gcp_service_account' in st.secrets:
+            st.info("Please check your Streamlit secrets configuration.")
+        else:
+            st.info("Please ensure your Google Cloud credentials are properly configured.")
         return None
 
 def setup_vertex_ai():
@@ -64,8 +72,13 @@ def setup_vertex_ai():
             credentials_path = "pg-cashback-5290642eb30b.json"
             
             if not os.path.exists(credentials_path):
-                st.error(f"Credentials file not found: {credentials_path}")
-                st.info("For local development, ensure your Google Cloud credentials file is present.")
+                # Check if we're in a cloud environment (no local file expected)
+                if 'streamlit' in str(os.environ.get('HOME', '')).lower() or 'app' in str(os.environ.get('HOME', '')).lower():
+                    st.error("Streamlit secrets not configured properly")
+                    st.info("Please configure Google Cloud credentials in the app secrets.")
+                else:
+                    st.error("Local development: Credentials file not found")
+                    st.info("For local development, ensure your Google Cloud credentials file is present.")
                 return None
             
             # Create credentials from the service account file
@@ -92,7 +105,10 @@ def setup_vertex_ai():
         
     except Exception as e:
         st.error(f"Error initializing Vertex AI: {str(e)}")
-        st.info("Please ensure Vertex AI API is enabled and credentials are configured.")
+        if hasattr(st, 'secrets') and 'gcp_service_account' in st.secrets:
+            st.info("Please check your Streamlit secrets configuration and ensure Vertex AI API is enabled.")
+        else:
+            st.info("Please ensure Vertex AI API is enabled and credentials are configured.")
         return None
 
 def extract_text_with_vision(image_bytes, client):
