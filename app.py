@@ -1091,8 +1091,147 @@ def main():
         camera_photo = st.camera_input("Take a picture")
         
         if camera_photo is not None:
-            image = Image.open(camera_photo)
-            image_bytes = camera_photo.getvalue()
+            # Load the captured image
+            captured_image = Image.open(camera_photo)
+            
+            # Image processing options
+            st.markdown("#### 🔧 Image Processing")
+            st.markdown("Adjust your receipt image for better analysis:")
+            
+            # Create columns for processing options
+            proc_col1, proc_col2 = st.columns(2)
+            
+            with proc_col1:
+                # Rotation
+                rotation = st.selectbox(
+                    "🔄 Rotate image:",
+                    [0, 90, 180, 270],
+                    help="Rotate the image if the receipt is sideways"
+                )
+                
+                # Brightness adjustment
+                brightness = st.slider(
+                    "☀️ Brightness:",
+                    min_value=0.5,
+                    max_value=2.0,
+                    value=1.0,
+                    step=0.1,
+                    help="Adjust brightness for better text visibility"
+                )
+                
+                # Contrast adjustment
+                contrast = st.slider(
+                    "🎨 Contrast:",
+                    min_value=0.5,
+                    max_value=2.0,
+                    value=1.0,
+                    step=0.1,
+                    help="Adjust contrast for clearer text"
+                )
+            
+            with proc_col2:
+                # Sharpness adjustment
+                sharpness = st.slider(
+                    "🔪 Sharpness:",
+                    min_value=0.5,
+                    max_value=2.0,
+                    value=1.0,
+                    step=0.1,
+                    help="Enhance text sharpness for better OCR"
+                )
+                
+                # Auto-enhance button
+                auto_enhance = st.button(
+                    "✨ Auto-enhance for receipts",
+                    help="Apply optimal settings for receipt text recognition",
+                    use_container_width=True
+                )
+                
+                # Reset button
+                if st.button("🔄 Reset to original", use_container_width=True):
+                    st.rerun()  # This will reload with default values
+                
+                # Enable manual cropping
+                enable_crop = st.checkbox(
+                    "✂️ Enable manual cropping",
+                    help="Crop the image to focus on the receipt"
+                )
+            
+            # Apply auto-enhancement if requested
+            if auto_enhance:
+                # Optimal settings for receipt processing
+                brightness = 1.2  # Slightly brighter
+                contrast = 1.4    # Higher contrast for text
+                sharpness = 1.3   # Sharper for better OCR
+                st.success("✨ Auto-enhancement applied!")
+                st.rerun()  # Refresh to show the enhanced values
+            
+            # Apply basic processing
+            processed_image = captured_image.copy()
+            
+            # Apply rotation
+            if rotation != 0:
+                processed_image = processed_image.rotate(-rotation, expand=True)
+            
+            # Apply brightness, contrast, and sharpness
+            from PIL import ImageEnhance
+            if brightness != 1.0:
+                enhancer = ImageEnhance.Brightness(processed_image)
+                processed_image = enhancer.enhance(brightness)
+            
+            if contrast != 1.0:
+                enhancer = ImageEnhance.Contrast(processed_image)
+                processed_image = enhancer.enhance(contrast)
+            
+            if sharpness != 1.0:
+                enhancer = ImageEnhance.Sharpness(processed_image)
+                processed_image = enhancer.enhance(sharpness)
+            
+            # Display processed image
+            st.markdown("#### 📷 Processed Image Preview")
+            st.image(processed_image, caption="Processed Receipt Image", width=600)
+            
+            # Manual cropping interface
+            if enable_crop:
+                st.markdown("#### ✂️ Manual Cropping")
+                st.markdown("Specify crop coordinates (as percentages of image dimensions):")
+                
+                crop_col1, crop_col2 = st.columns(2)
+                
+                with crop_col1:
+                    left_percent = st.slider("Left (%)", 0, 80, 0, 5)
+                    top_percent = st.slider("Top (%)", 0, 80, 0, 5)
+                
+                with crop_col2:
+                    right_percent = st.slider("Right (%)", 20, 100, 100, 5)
+                    bottom_percent = st.slider("Bottom (%)", 20, 100, 100, 5)
+                
+                # Apply cropping
+                img_width, img_height = processed_image.size
+                left = int(img_width * left_percent / 100)
+                top = int(img_height * top_percent / 100)
+                right = int(img_width * right_percent / 100)
+                bottom = int(img_height * bottom_percent / 100)
+                
+                # Validate crop coordinates
+                if left < right and top < bottom:
+                    cropped_image = processed_image.crop((left, top, right, bottom))
+                    st.image(cropped_image, caption="Cropped Receipt", width=600)
+                    final_image = cropped_image
+                else:
+                    st.warning("Invalid crop coordinates. Using full processed image.")
+                    final_image = processed_image
+            else:
+                final_image = processed_image
+            
+            # Convert final image to bytes
+            img_buffer = io.BytesIO()
+            final_image.save(img_buffer, format='JPEG', quality=95)
+            processed_image_bytes = img_buffer.getvalue()
+            
+            # Set the processed image as the main image for analysis
+            image = final_image
+            image_bytes = processed_image_bytes
             
             # Create a mock uploaded_file object for compatibility
             class MockUploadedFile:
@@ -1100,7 +1239,7 @@ def main():
                     self.name = filename
                     self.size = len(file_bytes)
             
-            uploaded_file = MockUploadedFile("camera_photo.jpg", image_bytes)
+            uploaded_file = MockUploadedFile("processed_camera_photo.jpg", image_bytes)
     
     else:  # Sample images
         # Check if receipts/images folder exists
