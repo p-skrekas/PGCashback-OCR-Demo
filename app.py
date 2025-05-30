@@ -1424,29 +1424,32 @@ def main():
                 with manual_crop_col2:
                     right_percent = st.slider("Right (%)", 20, 100, initial_right, 5, key="crop_right")
                     bottom_percent = st.slider("Bottom (%)", 20, 100, initial_bottom, 5, key="crop_bottom")
-            
-            # Apply cropping
-            img_width, img_height = processed_image.size
-            left = int(img_width * left_percent / 100)
-            top = int(img_height * top_percent / 100)
-            right = int(img_width * right_percent / 100)
-            bottom = int(img_height * bottom_percent / 100)
-            
-            # Validate crop coordinates
-            if left < right and top < bottom:
-                cropped_image = processed_image.crop((left, top, right, bottom))
-                st.markdown("#### 📷 Cropped Result")
-                st.image(cropped_image, caption="Cropped Receipt", width=600)
-                final_image = cropped_image
                 
-                # Show crop info
-                crop_info_col1, crop_info_col2 = st.columns(2)
-                with crop_info_col1:
-                    st.metric("Original Size", f"{img_width} × {img_height}")
-                with crop_info_col2:
-                    st.metric("Cropped Size", f"{right-left} × {bottom-top}")
+                # Apply cropping
+                img_width, img_height = processed_image.size
+                left = int(img_width * left_percent / 100)
+                top = int(img_height * top_percent / 100)
+                right = int(img_width * right_percent / 100)
+                bottom = int(img_height * bottom_percent / 100)
+                
+                # Validate crop coordinates
+                if left < right and top < bottom:
+                    cropped_image = processed_image.crop((left, top, right, bottom))
+                    st.markdown("#### 📷 Cropped Result")
+                    st.image(cropped_image, caption="Cropped Receipt", width=600)
+                    final_image = cropped_image
+                    
+                    # Show crop info
+                    crop_info_col1, crop_info_col2 = st.columns(2)
+                    with crop_info_col1:
+                        st.metric("Original Size", f"{img_width} × {img_height}")
+                    with crop_info_col2:
+                        st.metric("Cropped Size", f"{right-left} × {bottom-top}")
+                else:
+                    st.warning("Invalid crop coordinates. Using full processed image.")
+                    final_image = processed_image
             else:
-                st.warning("Invalid crop coordinates. Using full processed image.")
+                # No cropping enabled - use processed image as final
                 final_image = processed_image
             
             # Convert final image to bytes
