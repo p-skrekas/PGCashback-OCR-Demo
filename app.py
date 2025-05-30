@@ -458,42 +458,498 @@ def main():
     st.set_page_config(
         page_title="Receipt Scanner: OCR+LLM vs Direct LLM",
         page_icon="🧾",
-        layout="wide"
+        layout="wide",
+        initial_sidebar_state="expanded"
     )
+    
+    # Custom CSS for professional styling
+    st.markdown("""
+    <style>
+    /* Import Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    /* Global styling */
+    .main > div {
+        padding-top: 2rem;
+    }
+    
+    /* Custom styling for the main app */
+    .stApp {
+        font-family: 'Inter', sans-serif;
+        color: #1f2937;
+    }
+    
+    /* Ensure black text on white backgrounds */
+    .main .block-container {
+        color: #1f2937;
+    }
+    
+    /* Header styling */
+    .main-header {
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        text-align: center;
+        color: white;
+    }
+    
+    .main-header h1 {
+        color: white !important;
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .main-header p {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 1.2rem;
+        margin: 0;
+    }
+    
+    /* Status cards */
+    .status-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-left: 4px solid #667eea;
+        margin-bottom: 1rem;
+        color: #1f2937;
+    }
+    
+    .status-card h4 {
+        color: #1f2937 !important;
+        margin-bottom: 0.5rem;
+    }
+    
+    .status-card p {
+        color: #374151 !important;
+        margin: 0.25rem 0;
+    }
+    
+    .status-card.success {
+        border-left-color: #10b981;
+    }
+    
+    .status-card.error {
+        border-left-color: #ef4444;
+    }
+    
+    /* Analysis buttons */
+    .stButton > button {
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        color: white !important;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+    
+    /* Metrics styling */
+    .metric-container {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        text-align: center;
+        color: #1f2937;
+    }
+    
+    .metric-container h4 {
+        color: #1f2937 !important;
+        margin-bottom: 0.5rem;
+    }
+    
+    .metric-container p {
+        color: #374151 !important;
+        margin: 0;
+    }
+    
+    /* Section headers */
+    .section-header {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1f2937 !important;
+        margin: 2rem 0 1rem 0;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 2rem;
+        background-color: #f8fafc;
+        border-radius: 10px;
+        padding: 0.5rem;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        padding: 0 1.5rem;
+        background-color: transparent;
+        border-radius: 8px;
+        font-weight: 500;
+        color: #374151 !important;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        color: white !important;
+    }
+    
+    /* Login form styling */
+    .login-container {
+        background: white;
+        padding: 3rem;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        max-width: 400px;
+        margin: 2rem auto;
+        color: #1f2937;
+    }
+    
+    .login-container h3 {
+        color: #1f2937 !important;
+    }
+    
+    .login-container p {
+        color: #374151 !important;
+    }
+    
+    .login-container * {
+        color: #1f2937 !important;
+    }
+    
+    /* Login form input fields */
+    .login-container .stTextInput label {
+        color: #1f2937 !important;
+        font-weight: 500;
+    }
+    
+    .login-container .stTextInput input {
+        color: #1f2937 !important;
+        background-color: white !important;
+        border: 1px solid #d1d5db;
+    }
+    
+    .login-container .stTextInput input::placeholder {
+        color: #9ca3af !important;
+    }
+    
+    /* Login form markdown text */
+    .login-container .stMarkdown {
+        color: #1f2937 !important;
+    }
+    
+    .login-container .stMarkdown * {
+        color: #1f2937 !important;
+    }
+    
+    /* Image display styling */
+    .image-container {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        text-align: center;
+        color: #1f2937;
+    }
+    
+    /* Radio button styling */
+    .stRadio > div {
+        background: #f8fafc;
+        padding: 1rem;
+        border-radius: 10px;
+        border: 2px solid #e5e7eb;
+        color: #1f2937;
+    }
+    
+    .stRadio label {
+        color: #1f2937 !important;
+    }
+    
+    .stRadio div[role="radiogroup"] label {
+        color: #1f2937 !important;
+        font-weight: 500;
+    }
+    
+    .stRadio div[role="radiogroup"] div {
+        color: #1f2937 !important;
+    }
+    
+    /* Image input section specific styling */
+    .stRadio span {
+        color: #1f2937 !important;
+    }
+    
+    /* Ensure all radio button text is dark */
+    .stRadio * {
+        color: #1f2937 !important;
+    }
+    
+    /* File uploader section */
+    .stFileUploader {
+        color: #1f2937;
+    }
+    
+    .stFileUploader > div {
+        color: #1f2937 !important;
+    }
+    
+    .stFileUploader span {
+        color: #1f2937 !important;
+    }
+    
+    /* Camera input section */
+    .stCameraInput {
+        color: #1f2937;
+    }
+    
+    .stCameraInput > div {
+        color: #1f2937 !important;
+    }
+    
+    .stCameraInput span {
+        color: #1f2937 !important;
+    }
+    
+    /* Selectbox for sample images */
+    .stSelectbox {
+        color: #1f2937;
+    }
+    
+    .stSelectbox > div {
+        color: #1f2937 !important;
+    }
+    
+    .stSelectbox span {
+        color: #1f2937 !important;
+    }
+    
+    /* Markdown text in image input section */
+    .stMarkdown h4 {
+        color: #1f2937 !important;
+        font-weight: 600;
+    }
+    
+    /* Any text elements in the main content area */
+    .main .block-container p {
+        color: #374151 !important;
+    }
+    
+    .main .block-container span {
+        color: #1f2937 !important;
+    }
+    
+    /* Info boxes */
+    .info-box {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin: 1rem 0;
+    }
+    
+    .info-box h4 {
+        color: white !important;
+        margin-bottom: 0.5rem;
+    }
+    
+    .info-box p {
+        color: rgba(255, 255, 255, 0.9) !important;
+        margin: 0;
+    }
+    
+    /* Dataframe styling */
+    .stDataFrame {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    /* Text areas and content */
+    .stTextArea textarea {
+        color: #1f2937 !important;
+        background-color: white !important;
+    }
+    
+    /* Raw data tab specific styling */
+    .stTextArea label {
+        color: #1f2937 !important;
+        font-weight: 500;
+    }
+    
+    /* Text area content */
+    textarea {
+        color: #1f2937 !important;
+        background-color: white !important;
+        border: 1px solid #d1d5db;
+    }
+    
+    /* Markdown content */
+    .stMarkdown {
+        color: #1f2937;
+    }
+    
+    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h5, .stMarkdown h6 {
+        color: #1f2937 !important;
+    }
+    
+    .stMarkdown p {
+        color: #374151 !important;
+    }
+    
+    /* Raw data section headers */
+    .stMarkdown h4 {
+        color: #1f2937 !important;
+        font-weight: 600;
+    }
+    
+    /* Sidebar styling */
+    .css-1d391kg {
+        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .css-1d391kg .stMarkdown {
+        color: white !important;
+    }
+    
+    .css-1d391kg .stMarkdown h1, 
+    .css-1d391kg .stMarkdown h2, 
+    .css-1d391kg .stMarkdown h3, 
+    .css-1d391kg .stMarkdown h4, 
+    .css-1d391kg .stMarkdown h5, 
+    .css-1d391kg .stMarkdown h6 {
+        color: white !important;
+    }
+    
+    .css-1d391kg .stMarkdown p {
+        color: rgba(255, 255, 255, 0.9) !important;
+    }
+    
+    /* Download buttons */
+    .download-section {
+        background: #f8fafc;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-top: 2rem;
+        color: #1f2937;
+    }
+    
+    .download-section p {
+        color: #374151 !important;
+    }
+    
+    /* Expander content */
+    .streamlit-expanderContent {
+        background-color: white;
+        color: #1f2937;
+    }
+    
+    .streamlit-expanderContent p {
+        color: #374151 !important;
+    }
+    
+    /* Success/Error messages */
+    .stSuccess {
+        color: #10b981 !important;
+    }
+    
+    .stError {
+        color: #ef4444 !important;
+    }
+    
+    .stInfo {
+        color: #3b82f6 !important;
+    }
+    
+    .stWarning {
+        color: #f59e0b !important;
+    }
+    
+    /* File uploader */
+    .stFileUploader label {
+        color: #1f2937 !important;
+    }
+    
+    /* Camera input */
+    .stCameraInput label {
+        color: #1f2937 !important;
+    }
+    
+    /* Selectbox */
+    .stSelectbox label {
+        color: #1f2937 !important;
+    }
+    
+    /* Form elements */
+    .stTextInput label {
+        color: #1f2937 !important;
+    }
+    
+    .stTextInput input {
+        color: #1f2937 !important;
+        background-color: white !important;
+    }
+    
+    </style>
+    """, unsafe_allow_html=True)
     
     # Authentication
     if 'authenticated' not in st.session_state:
         st.session_state.authenticated = False
     
     if not st.session_state.authenticated:
-        # Login screen
-        st.title("🔐 Login Required")
-        st.markdown("Please enter your credentials to access the Receipt Scanner")
+        # Login screen with professional styling
+        st.markdown("""
+        <div class="main-header">
+            <h1>🔐 Welcome to Receipt Scanner Pro</h1>
+            <p>Advanced AI-Powered Receipt Analysis Platform</p>
+        </div>
+        """, unsafe_allow_html=True)
         
-        with st.form("login_form"):
-            col1, col2, col3 = st.columns([1, 2, 1])
+        # Center the login form
+        col1, col2, col3 = st.columns([1, 1, 1])
+        
+        with col2:
+            st.markdown('<div class="login-container">', unsafe_allow_html=True)
             
-            with col2:
-                st.markdown("### 👤 Authentication")
-                username = st.text_input("Username", placeholder="Enter username")
-                password = st.text_input("Password", type="password", placeholder="Enter password")
+            with st.form("login_form"):
+                st.markdown("### 🔑 Authentication Required")
+                st.markdown("Please enter your credentials to access the platform")
                 
-                login_button = st.form_submit_button("🚀 Login", use_container_width=True)
+                username = st.text_input("👤 Username", placeholder="Enter username")
+                password = st.text_input("🔒 Password", type="password", placeholder="Enter password")
+                
+                st.markdown("<br>", unsafe_allow_html=True)
+                login_button = st.form_submit_button("🚀 Access Platform", use_container_width=True)
                 
                 if login_button:
                     if username == "reborrn" and password == "password":
                         st.session_state.authenticated = True
-                        st.success("✅ Login successful! Redirecting...")
+                        st.success("✅ Authentication successful! Welcome to Receipt Scanner Pro")
                         st.rerun()
                     else:
-                        st.error("❌ Invalid username or password")
+                        st.error("❌ Invalid credentials. Please try again.")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
         
-        # Add some styling
-        st.markdown("---")
+        # Footer
+        st.markdown("<br><br>", unsafe_allow_html=True)
         st.markdown(
             """
-            <div style='text-align: center; color: #666; font-size: 14px;'>
-                🧾 Receipt Scanner: OCR+LLM vs Direct LLM Comparison Tool
+            <div style='text-align: center; color: #6b7280; font-size: 14px; padding: 2rem;'>
+                <p>🧾 <strong>Receipt Scanner Pro</strong> - Compare OCR+LLM vs Direct LLM approaches</p>
+                <p>Powered by Google Cloud Vision API & Vertex AI Gemini</p>
             </div>
             """, 
             unsafe_allow_html=True
@@ -502,9 +958,19 @@ def main():
     
     # Logout button in sidebar
     with st.sidebar:
-        st.markdown("### 👤 User Session")
-        st.write("Logged in as: **reborrn**")
-        if st.button("🚪 Logout"):
+        st.markdown("### 👤 User Dashboard")
+        st.markdown("**Logged in as:** reborrn")
+        st.markdown("**Role:** Administrator")
+        st.markdown("---")
+        
+        st.markdown("### 📊 Session Info")
+        if hasattr(st.session_state, 'ocr_llm_structured_data') or hasattr(st.session_state, 'direct_llm_structured_data'):
+            st.success("✅ Analysis data available")
+        else:
+            st.info("🔄 No analysis performed yet")
+        
+        st.markdown("---")
+        if st.button("🚪 Logout", use_container_width=True):
             st.session_state.authenticated = False
             # Clear all other session state variables
             for key in list(st.session_state.keys()):
@@ -512,69 +978,111 @@ def main():
                     del st.session_state[key]
             st.rerun()
     
-    # App title
-    st.title("🧾 Receipt Scanner: OCR+LLM vs Direct LLM Comparison")
-    st.markdown("Compare traditional OCR→LLM pipeline with direct image analysis using Vertex AI")
-    st.markdown("---")
+    # Professional main header
+    st.markdown("""
+    <div class="main-header">
+        <h1>🧾 Receipt Scanner Pro</h1>
+        <p>Advanced OCR+LLM vs Direct LLM Comparison Platform</p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    # Initialize clients
+    # Initialize clients with professional status display
+    st.markdown('<div class="section-header">🔧 System Status</div>', unsafe_allow_html=True)
+    
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("🔍 OCR + LLM Pipeline")
         vision_client = setup_google_vision()
         if vision_client:
-            st.success("✅ Google Vision API connected")
+            st.markdown("""
+            <div class="status-card success">
+                <h4>🔍 OCR Pipeline</h4>
+                <p><strong>Status:</strong> <span style="color: #10b981;">✅ Online</span></p>
+                <p><strong>Service:</strong> Google Vision API</p>
+                <p><strong>Capability:</strong> Text extraction with bounding boxes</p>
+            </div>
+            """, unsafe_allow_html=True)
         else:
-            st.error("❌ Google Vision not available")
+            st.markdown("""
+            <div class="status-card error">
+                <h4>🔍 OCR Pipeline</h4>
+                <p><strong>Status:</strong> <span style="color: #ef4444;">❌ Offline</span></p>
+                <p><strong>Service:</strong> Google Vision API</p>
+                <p><strong>Issue:</strong> Configuration required</p>
+            </div>
+            """, unsafe_allow_html=True)
     
     with col2:
-        st.subheader("🤖 Direct LLM Analysis")
         vertex_model = setup_vertex_ai()
         if vertex_model:
-            st.success("✅ Vertex AI connected")
+            st.markdown("""
+            <div class="status-card success">
+                <h4>🤖 AI Analysis Engine</h4>
+                <p><strong>Status:</strong> <span style="color: #10b981;">✅ Online</span></p>
+                <p><strong>Service:</strong> Vertex AI Gemini 2.0 Flash</p>
+                <p><strong>Capability:</strong> Direct image analysis & text processing</p>
+            </div>
+            """, unsafe_allow_html=True)
         else:
-            st.error("❌ Vertex AI not available")
-            with st.expander("🔑 Setup Vertex AI"):
-                st.markdown("""
-                **To use Vertex AI analysis:**
-                1. Create a Google Cloud Project
-                2. Enable the Vision API and Vertex AI API
-                3. Create a service account and download the JSON key
-                4. Place the key file in your app directory
-                """)
+            st.markdown("""
+            <div class="status-card error">
+                <h4>🤖 AI Analysis Engine</h4>
+                <p><strong>Status:</strong> <span style="color: #ef4444;">❌ Offline</span></p>
+                <p><strong>Service:</strong> Vertex AI Gemini 2.0 Flash</p>
+                <p><strong>Issue:</strong> Configuration required</p>
+            </div>
+            """, unsafe_allow_html=True)
     
     if not vision_client and not vertex_model:
         st.warning("⚠️ No analysis methods available. Please check your setup.")
         return
     
-    # File upload section
-    st.markdown("---")
-    st.subheader("📷 Upload Receipt Image")
+    # File upload section with professional styling
+    st.markdown('<div class="section-header">📷 Image Input</div>', unsafe_allow_html=True)
     
-    # Option to choose between upload or sample images
+    # Enhanced image source selection
+    st.markdown("Choose your preferred image input method:")
     image_source = st.radio(
-        "Choose image source:",
-        ["Upload your own image", "Use sample images"],
-        horizontal=True
+        "",
+        ["📁 Upload from device", "📸 Take photo", "🗂️ Sample images"],
+        horizontal=True,
+        label_visibility="collapsed"
     )
     
     uploaded_file = None
     image_bytes = None
     image = None
     
-    if image_source == "Upload your own image":
+    if image_source == "📁 Upload from device":
+        st.markdown("#### Upload Receipt Image")
         uploaded_file = st.file_uploader(
             "Choose a receipt image...",
             type=['png', 'jpg', 'jpeg'],
-            help="Supported formats: PNG, JPG, JPEG"
+            help="Supported formats: PNG, JPG, JPEG | Max size: 200MB"
         )
         
         if uploaded_file is not None:
             image = Image.open(uploaded_file)
             image_bytes = uploaded_file.getvalue()
     
-    else:  # Use sample images
+    elif image_source == "📸 Take photo":
+        st.markdown("#### Camera Capture")
+        st.markdown("📱 Position your device camera over the receipt and capture")
+        camera_photo = st.camera_input("Take a picture")
+        
+        if camera_photo is not None:
+            image = Image.open(camera_photo)
+            image_bytes = camera_photo.getvalue()
+            
+            # Create a mock uploaded_file object for compatibility
+            class MockUploadedFile:
+                def __init__(self, filename, file_bytes):
+                    self.name = filename
+                    self.size = len(file_bytes)
+            
+            uploaded_file = MockUploadedFile("camera_photo.jpg", image_bytes)
+    
+    else:  # Sample images
         # Check if receipts/images folder exists
         sample_folder = os.path.join("receipts", "images")
         if os.path.exists(sample_folder):
@@ -615,37 +1123,60 @@ def main():
             st.info("Sample images folder (receipts/images) not found")
     
     if image is not None and image_bytes is not None:
-        # Display the image
         try:
+            # Professional image display
+            st.markdown('<div class="section-header">📊 Image Analysis</div>', unsafe_allow_html=True)
+            
             # Create tabs for viewing options
-            image_tab1, image_tab2 = st.tabs(["Original Image", "OCR Visualization"])
+            image_tab1, image_tab2 = st.tabs(["🖼️ Original Image", "🔍 OCR Visualization"])
             
             with image_tab1:
-                st.subheader("📷 Receipt Image")
+                st.markdown('<div class="image-container">', unsafe_allow_html=True)
                 st.image(image, caption="Receipt Image", width=600)
+                st.markdown('</div>', unsafe_allow_html=True)
                 
-                # Image info
+                # Professional image metrics
                 col1, col2, col3, col4 = st.columns(4)
                 with col1:
-                    st.metric("Filename", uploaded_file.name)
+                    st.markdown(f"""
+                    <div class="metric-container">
+                        <h4>📄 Filename</h4>
+                        <p>{uploaded_file.name}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
                 with col2:
-                    st.metric("File Size", f"{len(image_bytes) / 1024:.1f} KB")
+                    st.markdown(f"""
+                    <div class="metric-container">
+                        <h4>💾 File Size</h4>
+                        <p>{len(image_bytes) / 1024:.1f} KB</p>
+                    </div>
+                    """, unsafe_allow_html=True)
                 with col3:
-                    st.metric("Dimensions", f"{image.size[0]} x {image.size[1]}")
+                    st.markdown(f"""
+                    <div class="metric-container">
+                        <h4>📐 Dimensions</h4>
+                        <p>{image.size[0]} × {image.size[1]}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
                 with col4:
-                    st.metric("Format", image.format)
+                    st.markdown(f"""
+                    <div class="metric-container">
+                        <h4>🎨 Format</h4>
+                        <p>{image.format}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
             
-            # Analysis section
-            st.markdown("---")
-            st.subheader("🚀 Analysis Options")
+            # Analysis section with professional styling
+            st.markdown('<div class="section-header">🚀 AI Analysis</div>', unsafe_allow_html=True)
+            st.markdown("Choose your analysis method to process the receipt:")
             
-            # Analysis buttons
+            # Professional analysis buttons
             analysis_col1, analysis_col2 = st.columns(2)
             
             with analysis_col1:
                 if vision_client and vertex_model:
-                    if st.button("🔍➡️🤖 Analyze with OCR+LLM", type="primary", use_container_width=True):
-                        with st.spinner("Step 1: Extracting text with Google Vision OCR..."):
+                    if st.button("🔍➡️🤖 OCR + LLM Pipeline", type="primary", use_container_width=True):
+                        with st.spinner("🔄 Step 1: Extracting text with Google Vision OCR..."):
                             # Extract text using Google Vision
                             extracted_text, text_annotations = extract_text_with_vision(image_bytes, vision_client)
                             
@@ -656,7 +1187,7 @@ def main():
                                     if visualization_image:
                                         st.session_state.ocr_visualization_image = visualization_image
                                 
-                                with st.spinner("Step 2: Analyzing extracted text with Gemini..."):
+                                with st.spinner("🔄 Step 2: Analyzing extracted text with Gemini..."):
                                     # Analyze the extracted text with LLM
                                     ocr_llm_structured_data, ocr_llm_raw_response = analyze_text_with_llm(extracted_text, vertex_model)
                                     
@@ -666,19 +1197,19 @@ def main():
                                         st.session_state.ocr_llm_structured_data = ocr_llm_structured_data
                                         st.session_state.ocr_llm_raw_response = ocr_llm_raw_response
                                         
-                                        st.success("✅ OCR+LLM processing completed!")
+                                        st.success("✅ OCR+LLM pipeline analysis completed!")
                                     else:
                                         st.error("❌ Failed to analyze extracted text with LLM.")
                             else:
                                 st.error("❌ Failed to extract text with OCR.")
                 else:
-                    st.button("🔍➡️🤖 Analyze with OCR+LLM", disabled=True, use_container_width=True)
-                    st.caption("Requires both Vision API and Vertex AI")
+                    st.button("🔍➡️🤖 OCR + LLM Pipeline", disabled=True, use_container_width=True)
+                    st.caption("⚠️ Requires both Vision API and Vertex AI")
             
             with analysis_col2:
                 if vertex_model:
-                    if st.button("🤖 Analyze with Direct LLM", type="secondary", use_container_width=True):
-                        with st.spinner("Processing image directly with Gemini..."):
+                    if st.button("🤖 Direct LLM Analysis", type="secondary", use_container_width=True):
+                        with st.spinner("🔄 Processing image directly with Gemini..."):
                             # Analyze using Direct LLM
                             direct_llm_structured_data, direct_llm_raw_response = analyze_receipt_with_llm(image_bytes, vertex_model)
                             
@@ -691,35 +1222,64 @@ def main():
                             else:
                                 st.error("❌ Failed to analyze with Direct LLM.")
                 else:
-                    st.button("🤖 Analyze with Direct LLM", disabled=True, use_container_width=True)
-                    st.caption("Vertex AI not available")
+                    st.button("🤖 Direct LLM Analysis", disabled=True, use_container_width=True)
+                    st.caption("⚠️ Vertex AI not available")
             
             # Display OCR visualization in the second tab if available
             with image_tab2:
-                st.subheader("🔍 OCR Text Detection Visualization")
+                st.markdown("#### 🔍 OCR Text Detection")
                 if hasattr(st.session_state, 'ocr_visualization_image') and st.session_state.ocr_visualization_image is not None:
+                    st.markdown('<div class="image-container">', unsafe_allow_html=True)
                     st.image(st.session_state.ocr_visualization_image, caption="Receipt with OCR Text Detection", width=600)
-                    st.info("🔎 Green boxes show detected text with labels")
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    st.info("🔎 Green boxes show detected text regions with labels")
                 else:
-                    st.info("👆 Click 'Analyze with OCR+LLM' to see text detection visualization")
+                    st.info("👆 Click 'OCR + LLM Pipeline' to see text detection visualization")
         
         except Exception as e:
-            st.error(f"Error processing image: {str(e)}")
+            st.error(f"❌ Error processing image: {str(e)}")
+            st.info("Please try uploading a different image or check the file format.")
+    
+    else:
+        # Professional instructions when no image is selected
+        st.markdown('<div class="section-header">🚀 Get Started</div>', unsafe_allow_html=True)
+        
+        if image_source == "📁 Upload from device":
+            st.markdown("""
+            <div class="info-box">
+                <h4>📁 Upload Receipt Image</h4>
+                <p>Select a receipt image from your device to begin analysis</p>
+            </div>
+            """, unsafe_allow_html=True)
+        elif image_source == "📸 Take photo":
+            st.markdown("""
+            <div class="info-box">
+                <h4>📸 Camera Ready</h4>
+                <p>Use the camera button above to capture a receipt photo</p>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div class="info-box">
+                <h4>🗂️ Sample Images Available</h4>
+                <p>Select a sample receipt from the dropdown above</p>
+            </div>
+            """, unsafe_allow_html=True)
     
     # Display results if available (independent of current image selection)
     if (hasattr(st.session_state, 'ocr_llm_structured_data') and st.session_state.ocr_llm_structured_data) or \
        (hasattr(st.session_state, 'direct_llm_structured_data') and st.session_state.direct_llm_structured_data):
         
-        st.markdown("---")
-        st.subheader("📊 Analysis Results Comparison")
+        st.markdown('<div class="section-header">📊 Analysis Results</div>', unsafe_allow_html=True)
         
         # Create tabs for different analysis methods
         if hasattr(st.session_state, 'ocr_llm_structured_data') and hasattr(st.session_state, 'direct_llm_structured_data'):
-            # Both methods available - show comparison
-            tab1, tab2, tab3, tab4 = st.tabs(["📋 OCR+LLM Results", "🤖 Direct LLM Results", "⚖️ Comparison", "📄 Raw Data"])
+            # Both methods available - show both results and raw data
+            tab1, tab2, tab3 = st.tabs(["🔍 OCR+LLM Results", "🤖 Direct LLM Results", "📄 Raw Data"])
+            tab4 = tab3  # Raw data tab
         elif hasattr(st.session_state, 'ocr_llm_structured_data'):
             # Only OCR+LLM available
-            tab1, tab4 = st.tabs(["📋 OCR+LLM Results", "📄 Raw Data"])
+            tab1, tab4 = st.tabs(["🔍 OCR+LLM Results", "📄 Raw Data"])
             tab2 = tab3 = None
         else:
             # Only Direct LLM available  
@@ -854,77 +1414,6 @@ def main():
                         st.markdown("#### ℹ️ Additional Information")
                         st.write(llm_data['additional_info'])
         
-        # Comparison Tab
-        if tab3 and hasattr(st.session_state, 'ocr_llm_structured_data') and hasattr(st.session_state, 'direct_llm_structured_data'):
-            with tab3:
-                st.markdown("### ⚖️ OCR+LLM vs Direct LLM Comparison")
-                
-                ocr_llm_data = st.session_state.ocr_llm_structured_data
-                direct_llm_data = st.session_state.direct_llm_structured_data
-                
-                # Create comparison table
-                comparison_data = {
-                    'Field': [],
-                    'OCR+LLM Result': [],
-                    'Direct LLM Result': [],
-                    'Match': []
-                }
-                
-                fields_to_compare = [
-                    ('store_name', 'Store Name'),
-                    ('store_address', 'Store Address'),
-                    ('phone_number', 'Phone Number'),
-                    ('date', 'Date'),
-                    ('time', 'Time'),
-                    ('receipt_number', 'Receipt Number'),
-                    ('subtotal', 'Subtotal'),
-                    ('tax', 'Tax'),
-                    ('total', 'Total'),
-                    ('payment_method', 'Payment Method')
-                ]
-                
-                for field_key, field_name in fields_to_compare:
-                    ocr_value = ocr_llm_data.get(field_key) or "Not detected"
-                    direct_value = direct_llm_data.get(field_key) or "Not detected"
-                    
-                    # Simple comparison (you could make this more sophisticated)
-                    match = "✅" if str(ocr_value).strip().lower() == str(direct_value).strip().lower() else "❌"
-                    if ocr_value == "Not detected" and direct_value == "Not detected":
-                        match = "➖"
-                    
-                    comparison_data['Field'].append(field_name)
-                    comparison_data['OCR+LLM Result'].append(str(ocr_value))
-                    comparison_data['Direct LLM Result'].append(str(direct_value))
-                    comparison_data['Match'].append(match)
-                
-                st.dataframe(comparison_data, use_container_width=True)
-                
-                # Items comparison
-                st.markdown("#### 🛒 Items Comparison")
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.write("**OCR+LLM Items:**")
-                    if ocr_llm_data.get('items'):
-                        for item in ocr_llm_data['items']:
-                            item_text = f"- {item.get('name', 'N/A')}: {item.get('price', 'N/A')}"
-                            if item.get('quantity'):
-                                item_text += f" (Qty: {item['quantity']})"
-                            st.write(item_text)
-                    else:
-                        st.write("No items detected")
-                
-                with col2:
-                    st.write("**Direct LLM Items:**")
-                    if direct_llm_data.get('items'):
-                        for item in direct_llm_data['items']:
-                            item_text = f"- {item.get('name', 'N/A')}: {item.get('price', 'N/A')}"
-                            if item.get('quantity'):
-                                item_text += f" (Qty: {item['quantity']})"
-                            st.write(item_text)
-                    else:
-                        st.write("No items detected")
-        
         # Raw Data Tab
         if tab4:
             with tab4:
@@ -956,146 +1445,6 @@ def main():
                         height=150,
                         disabled=True
                     )
-        
-        # Download options
-        st.markdown("---")
-        st.subheader("💾 Download Results")
-        
-        download_cols = st.columns(4)
-        
-        with download_cols[0]:
-            # Download OCR text
-            if hasattr(st.session_state, 'ocr_extracted_text'):
-                st.download_button(
-                    label="📄 OCR Text",
-                    data=st.session_state.ocr_extracted_text,
-                    file_name="ocr_text.txt",
-                    mime="text/plain"
-                )
-        
-        with download_cols[1]:
-            # Download OCR+LLM structured data
-            if hasattr(st.session_state, 'ocr_llm_structured_data'):
-                structured_json = json.dumps(st.session_state.ocr_llm_structured_data, indent=2)
-                st.download_button(
-                    label="🗂️ OCR+LLM Data",
-                    data=structured_json,
-                    file_name="ocr_llm_structured.json",
-                    mime="application/json"
-                )
-        
-        with download_cols[2]:
-            # Download Direct LLM data
-            if hasattr(st.session_state, 'direct_llm_structured_data'):
-                llm_json = json.dumps(st.session_state.direct_llm_structured_data, indent=2)
-                st.download_button(
-                    label="🤖 Direct LLM Data",
-                    data=llm_json,
-                    file_name="direct_llm_structured.json",
-                    mime="application/json"
-                )
-        
-        with download_cols[3]:
-            # Download visualization image if available
-            if hasattr(st.session_state, 'ocr_visualization_image'):
-                buf = io.BytesIO()
-                st.session_state.ocr_visualization_image.save(buf, format="PNG")
-                byte_im = buf.getvalue()
-                
-                st.download_button(
-                    label="📸 OCR Visualization",
-                    data=byte_im,
-                    file_name="ocr_visualization.png",
-                    mime="image/png"
-                )
-    
-    else:
-        # Show instructions when no image is selected
-        if image_source == "Upload your own image":
-            st.info("👆 Please upload a receipt image to get started")
-        else:
-            st.info("👆 Please select a sample receipt image to get started")
-        
-        # Add some helpful tips
-        with st.expander("📝 Tips for best results"):
-            st.markdown("""
-            **For optimal analysis:**
-            - Use clear, well-lit photos
-            - Ensure the entire receipt is visible and flat
-            - Avoid shadows, glare, and reflections
-            - Take photos straight-on (not at an angle)
-            - Use higher resolution images when possible
-            - Ensure good contrast between text and background
-            
-            **Image sources:**
-            - **Upload your own:** Use your own receipt images
-            - **Sample images:** Select from pre-loaded examples in `receipts/images/`
-            
-            **Supported formats:** PNG, JPG, JPEG
-            """)
-        
-        # Explain the features
-        with st.expander("🔍 What does this app do?"):
-            st.markdown("""
-            **This Receipt Scanner compares two different approaches to AI-powered receipt analysis:**
-            
-            **🔍➡️🤖 OCR+LLM Pipeline (Traditional Approach):**
-            - **Step 1**: Extract text using Google Vision API (OCR)
-            - **Step 2**: Analyze extracted text with Gemini Flash 2.0 (LLM)
-            - Combines reliable text extraction with intelligent analysis
-            - Good for clear, well-formatted receipts
-            - Shows intermediate OCR text for transparency
-            
-            **🤖 Direct LLM Analysis (Modern Approach):**
-            - **Single Step**: Gemini Flash 2.0 analyzes the image directly
-            - No intermediate OCR step - understands images natively
-            - Better at handling poor quality, rotated, or unusual layouts
-            - Can see context that pure text extraction might miss
-            - More end-to-end but less transparent
-            
-            **⚖️ Comparison Features:**
-            - Side-by-side structured results
-            - Field-by-field accuracy comparison with match indicators
-            - Performance insights for different receipt types
-            - Raw data inspection for both approaches
-            - Visual OCR detection overlay (pipeline method only)
-            
-            **📊 What you'll see extracted:**
-            - **Store Information**: Name, address, phone number
-            - **Transaction Details**: Date, time, receipt number
-            - **Itemized List**: Products, prices, quantities
-            - **Financial Summary**: Subtotal, tax, total amounts
-            - **Payment Method**: Cash, card, digital payments
-            - **Additional Insights**: Cashier names, promotions, discounts
-            
-            **🎯 Use Cases:**
-            - **Pipeline approach**: When you need transparency and auditability
-            - **Direct approach**: When handling diverse or poor-quality images
-            - **Comparison**: To understand which method works better for your data
-            
-            This comparison helps you choose the optimal approach for your specific receipt processing needs!
-            """)
-        
-        # Setup instructions
-        with st.expander("⚙️ Setup Instructions"):
-            st.markdown("""
-            **Google Cloud Setup (required for both methods):**
-            1. Create a Google Cloud Project
-            2. Enable the following APIs:
-               - Cloud Vision API (for OCR+LLM pipeline)
-               - Vertex AI API (for both methods)
-            3. Create a service account and download the JSON key
-            4. Place the key file in your app directory
-            5. Ensure your service account has the following roles:
-               - Cloud Vision API User (for OCR functionality)
-               - Vertex AI User (for LLM functionality)
-            
-            **Note:** Both analysis methods use the same GCP credentials - no separate API keys needed!
-            
-            **Cost Considerations:**
-            - OCR+LLM: Vision API calls + Vertex AI text processing
-            - Direct LLM: Vertex AI image processing (typically higher cost per request)
-            """)
 
 if __name__ == "__main__":
     main() 
