@@ -1084,6 +1084,10 @@ def main():
     elif image_source == "📸 Take photo":
         st.markdown("#### Camera Capture")
         st.markdown("📱 Position your device camera over the receipt and capture")
+        
+        # Add camera availability check info
+        st.info("📌 **Camera Requirements:** HTTPS connection, camera permissions enabled, and compatible browser (Chrome/Safari recommended)")
+        
         camera_photo = st.camera_input("Take a picture")
         
         if camera_photo is not None:
