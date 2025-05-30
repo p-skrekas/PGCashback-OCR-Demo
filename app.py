@@ -469,6 +469,160 @@ def analyze_receipt_with_llm(image_bytes, model):
         st.error(f"Error analyzing receipt with Direct LLM: {str(e)}")
         return None, None
 
+def detect_receipt_boundaries(image_bytes, client):
+    """Detect receipt boundaries using Google Vision API"""
+    try:
+        # Create Vision Image object
+        image = vision.Image(content=image_bytes)
+        
+        # Perform document text detection to get overall document boundaries
+        response = client.document_text_detection(image=image)
+        
+        if response.error.message:
+            raise Exception(f'{response.error.message}')
+        
+        # Get the full text annotation which contains page-level information
+        document = response.full_text_annotation
+        
+        if document and document.pages:
+            # Get the first page
+            page = document.pages[0]
+            
+            # Get page dimensions and bounds
+            page_width = page.width
+            page_height = page.height
+            
+            # Find the bounding box that encompasses most text blocks
+            min_x, min_y = float('inf'), float('inf')
+            max_x, max_y = 0, 0
+            
+            for block in page.blocks:
+                for vertex in block.bounding_box.vertices:
+                    min_x = min(min_x, vertex.x)
+                    min_y = min(min_y, vertex.y)
+                    max_x = max(max_x, vertex.x)
+                    max_y = max(max_y, vertex.y)
+            
+            # Add some padding around the detected text area
+            padding_x = int((max_x - min_x) * 0.05)  # 5% padding
+            padding_y = int((max_y - min_y) * 0.05)
+            
+            # Ensure bounds are within image dimensions
+            crop_left = max(0, min_x - padding_x)
+            crop_top = max(0, min_y - padding_y)
+            crop_right = min(page_width, max_x + padding_x)
+            crop_bottom = min(page_height, max_y + padding_y)
+            
+            # Convert to percentages for consistency with manual cropping
+            left_percent = int((crop_left / page_width) * 100)
+            top_percent = int((crop_top / page_height) * 100)
+            right_percent = int((crop_right / page_width) * 100)
+            bottom_percent = int((crop_bottom / page_height) * 100)
+            
+            return {
+                'left': left_percent,
+                'top': top_percent,
+                'right': right_percent,
+                'bottom': bottom_percent,
+                'confidence': 'high' if len(page.blocks) > 3 else 'medium'
+            }
+        
+        # Fallback: use regular text detection
+        text_response = client.text_detection(image=image)
+        texts = text_response.text_annotations
+        
+        if texts and len(texts) > 1:
+            # Skip the first annotation (full text) and process individual text blocks
+            min_x, min_y = float('inf'), float('inf')
+            max_x, max_y = 0, 0
+            
+            for text in texts[1:]:  # Skip first element which is full text
+                for vertex in text.bounding_poly.vertices:
+                    min_x = min(min_x, vertex.x)
+                    min_y = min(min_y, vertex.y)
+                    max_x = max(max_x, vertex.x)
+                    max_y = max(max_y, vertex.y)
+            
+            # Estimate image dimensions from the text bounds
+            img_width = max_x * 1.2  # Estimate with some margin
+            img_height = max_y * 1.2
+            
+            # Add padding
+            padding_x = int((max_x - min_x) * 0.1)
+            padding_y = int((max_y - min_y) * 0.1)
+            
+            crop_left = max(0, min_x - padding_x)
+            crop_top = max(0, min_y - padding_y)
+            crop_right = min(img_width, max_x + padding_x)
+            crop_bottom = min(img_height, max_y + padding_y)
+            
+            # Convert to percentages
+            left_percent = max(0, int((crop_left / img_width) * 100))
+            top_percent = max(0, int((crop_top / img_height) * 100))
+            right_percent = min(100, int((crop_right / img_width) * 100))
+            bottom_percent = min(100, int((crop_bottom / img_height) * 100))
+            
+            return {
+                'left': left_percent,
+                'top': top_percent,
+                'right': right_percent,
+                'bottom': bottom_percent,
+                'confidence': 'medium'
+            }
+        
+        return None
+        
+    except Exception as e:
+        st.warning(f"Could not detect receipt boundaries: {str(e)}")
+        return None
+
+def visualize_detected_boundaries(image, boundaries):
+    """Visualize detected boundaries on the image"""
+    try:
+        # Create a copy of the image for drawing
+        viz_image = image.copy()
+        draw = ImageDraw.Draw(viz_image)
+        
+        # Get image dimensions
+        img_width, img_height = viz_image.size
+        
+        # Convert percentage boundaries to pixel coordinates
+        left = int(img_width * boundaries['left'] / 100)
+        top = int(img_height * boundaries['top'] / 100)
+        right = int(img_width * boundaries['right'] / 100)
+        bottom = int(img_height * boundaries['bottom'] / 100)
+        
+        # Draw boundary rectangle
+        outline_color = "red" if boundaries['confidence'] == 'high' else "orange"
+        line_width = 3
+        
+        # Draw the boundary rectangle
+        draw.rectangle(
+            [(left, top), (right, bottom)],
+            outline=outline_color,
+            width=line_width
+        )
+        
+        # Add corner markers for better visibility
+        marker_size = 10
+        corners = [
+            (left, top), (right, top),
+            (left, bottom), (right, bottom)
+        ]
+        
+        for corner_x, corner_y in corners:
+            draw.rectangle(
+                [(corner_x - marker_size, corner_y - marker_size),
+                 (corner_x + marker_size, corner_y + marker_size)],
+                fill=outline_color
+            )
+        
+        return viz_image
+        
+    except Exception as e:
+        st.warning(f"Could not visualize boundaries: {str(e)}")
+        return image
+
 def main():
     # Page configuration
     st.set_page_config(
@@ -1193,35 +1347,106 @@ def main():
             
             # Manual cropping interface
             if enable_crop:
-                st.markdown("#### ✂️ Manual Cropping")
-                st.markdown("Specify crop coordinates (as percentages of image dimensions):")
+                st.markdown("#### ✂️ Smart Cropping")
                 
-                crop_col1, crop_col2 = st.columns(2)
+                # Auto-detect boundaries button
+                crop_col1, crop_col2 = st.columns([2, 1])
                 
                 with crop_col1:
-                    left_percent = st.slider("Left (%)", 0, 80, 0, 5)
-                    top_percent = st.slider("Top (%)", 0, 80, 0, 5)
+                    st.markdown("**Option 1: Auto-detect receipt boundaries**")
+                    if st.button("🎯 Auto-detect receipt boundaries", use_container_width=True):
+                        if vision_client:
+                            with st.spinner("🔍 Detecting receipt boundaries..."):
+                                # Get current processed image bytes for boundary detection
+                                temp_buffer = io.BytesIO()
+                                processed_image.save(temp_buffer, format='JPEG')
+                                temp_image_bytes = temp_buffer.getvalue()
+                                
+                                boundaries = detect_receipt_boundaries(temp_image_bytes, vision_client)
+                                
+                                if boundaries:
+                                    st.session_state.detected_boundaries = boundaries
+                                    confidence_color = "🟢" if boundaries['confidence'] == 'high' else "🟡"
+                                    st.success(f"{confidence_color} Receipt boundaries detected with {boundaries['confidence']} confidence!")
+                                    st.rerun()
+                                else:
+                                    st.warning("Could not detect clear receipt boundaries. Try manual adjustment.")
+                        else:
+                            st.error("Google Vision API not available for boundary detection")
                 
                 with crop_col2:
-                    right_percent = st.slider("Right (%)", 20, 100, 100, 5)
-                    bottom_percent = st.slider("Bottom (%)", 20, 100, 100, 5)
+                    st.markdown("**Detected bounds:**")
+                    if hasattr(st.session_state, 'detected_boundaries') and st.session_state.detected_boundaries:
+                        bounds = st.session_state.detected_boundaries
+                        st.write(f"Left: {bounds['left']}%")
+                        st.write(f"Top: {bounds['top']}%")
+                        st.write(f"Right: {bounds['right']}%")
+                        st.write(f"Bottom: {bounds['bottom']}%")
+                        
+                        # Show boundary visualization
+                        if st.checkbox("👁️ Show detected boundaries", help="Visualize detected boundaries on the image"):
+                            boundary_viz = visualize_detected_boundaries(processed_image, bounds)
+                            st.image(boundary_viz, caption="Detected Receipt Boundaries", width=400)
+                        
+                        if st.button("✅ Apply detected bounds"):
+                            # Set the detected boundaries as crop values
+                            left_percent = bounds['left']
+                            top_percent = bounds['top']
+                            right_percent = bounds['right']
+                            bottom_percent = bounds['bottom']
+                            st.session_state.crop_applied = True
+                            st.rerun()
+                    else:
+                        st.info("No boundaries detected yet")
                 
-                # Apply cropping
-                img_width, img_height = processed_image.size
-                left = int(img_width * left_percent / 100)
-                top = int(img_height * top_percent / 100)
-                right = int(img_width * right_percent / 100)
-                bottom = int(img_height * bottom_percent / 100)
+                st.markdown("**Option 2: Manual adjustment**")
+                st.markdown("Fine-tune crop coordinates (as percentages of image dimensions):")
                 
-                # Validate crop coordinates
-                if left < right and top < bottom:
-                    cropped_image = processed_image.crop((left, top, right, bottom))
-                    st.image(cropped_image, caption="Cropped Receipt", width=600)
-                    final_image = cropped_image
+                # Use detected boundaries as initial values if available
+                if hasattr(st.session_state, 'detected_boundaries') and st.session_state.detected_boundaries and not hasattr(st.session_state, 'crop_applied'):
+                    bounds = st.session_state.detected_boundaries
+                    initial_left = bounds['left']
+                    initial_top = bounds['top']
+                    initial_right = bounds['right']
+                    initial_bottom = bounds['bottom']
                 else:
-                    st.warning("Invalid crop coordinates. Using full processed image.")
-                    final_image = processed_image
+                    initial_left = 0
+                    initial_top = 0
+                    initial_right = 100
+                    initial_bottom = 100
+                
+                manual_crop_col1, manual_crop_col2 = st.columns(2)
+                
+                with manual_crop_col1:
+                    left_percent = st.slider("Left (%)", 0, 80, initial_left, 5, key="crop_left")
+                    top_percent = st.slider("Top (%)", 0, 80, initial_top, 5, key="crop_top")
+                
+                with manual_crop_col2:
+                    right_percent = st.slider("Right (%)", 20, 100, initial_right, 5, key="crop_right")
+                    bottom_percent = st.slider("Bottom (%)", 20, 100, initial_bottom, 5, key="crop_bottom")
+            
+            # Apply cropping
+            img_width, img_height = processed_image.size
+            left = int(img_width * left_percent / 100)
+            top = int(img_height * top_percent / 100)
+            right = int(img_width * right_percent / 100)
+            bottom = int(img_height * bottom_percent / 100)
+            
+            # Validate crop coordinates
+            if left < right and top < bottom:
+                cropped_image = processed_image.crop((left, top, right, bottom))
+                st.markdown("#### 📷 Cropped Result")
+                st.image(cropped_image, caption="Cropped Receipt", width=600)
+                final_image = cropped_image
+                
+                # Show crop info
+                crop_info_col1, crop_info_col2 = st.columns(2)
+                with crop_info_col1:
+                    st.metric("Original Size", f"{img_width} × {img_height}")
+                with crop_info_col2:
+                    st.metric("Cropped Size", f"{right-left} × {bottom-top}")
             else:
+                st.warning("Invalid crop coordinates. Using full processed image.")
                 final_image = processed_image
             
             # Convert final image to bytes
