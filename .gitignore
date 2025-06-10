@@ -84,4 +84,146 @@ config.ini
 # Streamlit secrets (contains sensitive credentials)
 .streamlit/secrets.toml
 
-# Receipt images and data 
+# Receipt images and data
+
+# Dataset and Data Files
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.json
+*.parquet
+*.h5
+*.hdf5
+*.pkl
+*.pickle
+*.db
+*.sqlite
+*.sqlite3
+*.data
+*.dat
+*.txt
+*.log
+
+# EDA and Analysis Files
+**/EDA/
+**/eda/
+**/analysis/
+**/exploratory/
+**/notebooks/
+*.ipynb
+**/plots/
+**/charts/
+**/visualizations/
+**/figures/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.pdf
+*.eps
+
+# Model Files
+*.model
+*.joblib
+*.sav
+*.pt
+*.pth
+*.ckpt
+*.weights
+**/models/
+**/checkpoints/
+
+# Large Data Directories
+data/
+datasets/
+raw_data/
+processed_data/
+training_data/
+test_data/
+validation_data/
+receipts/images/
+samples/
+new_dataset/
+
+# Virtual Environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.conda/
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Credentials and API Keys
+credentials.json
+*-credentials.json
+*.key
+*.pem
+config.ini
+secrets.toml
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Cache and Temporary Files
+.cache/
+*.tmp
+*.temp
+temp/
+tmp/
+cache/
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Compressed Files
+*.zip
+*.rar
+*.7z
+*.tar
+*.tar.gz
+*.tar.bz2
+
+# Documentation Build
+docs/_build/
+site/
+
+# Coverage Reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json 

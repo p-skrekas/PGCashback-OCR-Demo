@@ -5,3 +5,5 @@ google-auth
 opencv-python-headless
 numpy
 google-cloud-aiplatform 
+matplotlib
+seaborn
