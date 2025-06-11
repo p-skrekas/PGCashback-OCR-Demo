@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 import io
@@ -88,7 +89,7 @@ def setup_vertex_ai():
             )
             
             # Load project ID from file
-            with open(credentials_path, 'r') as f:
+            with open(credentials_path, 'r', encoding='utf-8') as f:
                 cred_data = json.load(f)
             project_id = cred_data['project_id']
         
@@ -137,8 +138,43 @@ def extract_text_with_vision(image_bytes, client):
         st.error(f"Error during OCR processing: {str(e)}")
         return None, []
 
+def draw_unicode_text_on_image(img, text, position, font_size=20, color=(255, 0, 0)):
+    """Draw Unicode text (including Greek characters) on image using PIL"""
+    try:
+        # Convert OpenCV image to PIL
+        img_pil = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+        draw = ImageDraw.Draw(img_pil)
+        
+        # Try to use a font that supports Unicode
+        try:
+            # Try to load a system font that supports Greek characters
+            font = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", font_size)
+        except:
+            try:
+                # Fallback for different systems
+                font = ImageFont.truetype("arial.ttf", font_size)
+            except:
+                try:
+                    # Another fallback
+                    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", font_size)
+                except:
+                    # Use default font as last resort
+                    font = ImageFont.load_default()
+        
+        # Draw the text
+        draw.text(position, text, font=font, fill=color)
+        
+        # Convert back to OpenCV format
+        img_cv = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
+        return img_cv
+        
+    except Exception as e:
+        print(f"Error drawing Unicode text: {e}")
+        # Fallback to original image if text drawing fails
+        return img
+
 def draw_bounding_boxes(image_bytes, text_annotations):
-    """Draw bounding boxes around detected text in the image"""
+    """Draw bounding boxes around detected text in the image with Unicode support"""
     try:
         # Convert image bytes to numpy array
         nparr = np.frombuffer(image_bytes, np.uint8)
@@ -160,6 +196,36 @@ def draw_bounding_boxes(image_bytes, text_annotations):
         else:
             scale_factor = 1.0
         
+        # Convert to PIL Image for Unicode text support
+        img_pil = Image.fromarray(img)
+        draw = ImageDraw.Draw(img_pil)
+        
+        # Try to load a Unicode-compatible font
+        try:
+            # Try different font paths for different systems
+            font_paths = [
+                "/System/Library/Fonts/Arial.ttf",  # macOS
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # Linux
+                "C:/Windows/Fonts/arial.ttf",  # Windows
+                "arial.ttf"  # Generic
+            ]
+            
+            font = None
+            font_size = 12 if scale_factor < 1.0 else 16
+            
+            for font_path in font_paths:
+                try:
+                    font = ImageFont.truetype(font_path, font_size)
+                    break
+                except:
+                    continue
+            
+            if font is None:
+                font = ImageFont.load_default()
+                
+        except:
+            font = ImageFont.load_default()
+        
         # Draw bounding boxes (scaled if necessary)
         for text in text_annotations:
             points = [(vertex.x, vertex.y) for vertex in text.bounding_poly.vertices]
@@ -168,24 +234,32 @@ def draw_bounding_boxes(image_bytes, text_annotations):
             if scale_factor != 1.0:
                 points = [(int(x * scale_factor), int(y * scale_factor)) for x, y in points]
             
-            # Create a rectangle (OpenCV requires integers for rectangle points)
+            # Create a rectangle
             x_coords = [p[0] for p in points]
             y_coords = [p[1] for p in points]
             
             x1, y1 = min(x_coords), min(y_coords)
             x2, y2 = max(x_coords), max(y_coords)
             
-            # Draw the rectangle
-            cv2.rectangle(img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
+            # Draw the rectangle using PIL
+            draw.rectangle([(x1, y1), (x2, y2)], outline=(0, 255, 0), width=2)
             
-            # Add text description with smaller font
+            # Add text description with Unicode support
             # Display a truncated version if the text is too long
             display_text = text.description[:12] + "..." if len(text.description) > 12 else text.description
-            font_scale = 0.4 if scale_factor < 1.0 else 0.5
-            cv2.putText(img, display_text, (int(x1), int(y1) - 5), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 0, 0), 1)
+            
+            # Ensure the text is properly encoded as UTF-8
+            try:
+                display_text = display_text.encode('utf-8').decode('utf-8')
+            except:
+                display_text = "???"  # Fallback for problematic characters
+            
+            # Draw text with Unicode support
+            text_position = (x1, max(0, y1 - 20))
+            draw.text(text_position, display_text, font=font, fill=(255, 0, 0))
         
-        # Convert back to PIL Image
-        return Image.fromarray(img)
+        # Convert back to PIL Image and return
+        return img_pil
     
     except Exception as e:
         st.error(f"Error drawing bounding boxes: {str(e)}")
@@ -333,6 +407,13 @@ def analyze_receipt_text(text):
 def analyze_text_with_llm(extracted_text, model):
     """Analyze OCR-extracted text using Vertex AI Gemini model"""
     try:
+        # Ensure the extracted text is properly encoded as UTF-8
+        if extracted_text:
+            try:
+                extracted_text = extracted_text.encode('utf-8').decode('utf-8')
+            except:
+                extracted_text = extracted_text  # Keep original if encoding fails
+        
         # Create the prompt for text analysis
         prompt = f"""
         Analyze this receipt text that was extracted using OCR and provide a clear, structured analysis. 
@@ -367,14 +448,22 @@ def analyze_text_with_llm(extracted_text, model):
         - Any discounts, promotions, or other relevant details
         
         Format your response in a clear, organized manner. If any information is not clearly visible in the receipt text, indicate that it is "Not clearly visible" or "Not specified".
+        Please preserve any non-English characters (like Greek letters) exactly as they appear.
         Response only with the information and do not provide any comments,
         """
         
         # Generate content with the text prompt
         response = model.generate_content(prompt)
         
-        # Return only the raw response text
-        response_text = response.text.strip()
+        # Return only the raw response text with proper encoding
+        response_text = response.text.strip() if response.text else ""
+        
+        # Ensure proper UTF-8 encoding of the response
+        try:
+            response_text = response_text.encode('utf-8').decode('utf-8')
+        except:
+            pass  # Keep original if encoding fails
+            
         return response_text
             
     except Exception as e:
@@ -425,13 +514,21 @@ def analyze_receipt_with_llm(image_bytes, model):
         - Any discounts, promotions, or other relevant details
         
         Format your response in a clear, organized manner. If any information is not clearly visible or readable in the receipt, indicate that it is "Not clearly visible" or "Not specified".
+        Please preserve any non-English characters (like Greek letters) exactly as they appear.
         """
         
         # Generate content with the image and prompt
         response = model.generate_content([prompt, image_part])
         
-        # Return only the raw response text
-        response_text = response.text.strip()
+        # Return only the raw response text with proper encoding
+        response_text = response.text.strip() if response.text else ""
+        
+        # Ensure proper UTF-8 encoding of the response
+        try:
+            response_text = response_text.encode('utf-8').decode('utf-8')
+        except:
+            pass  # Keep original if encoding fails
+            
         return response_text
             
     except Exception as e:
@@ -699,13 +796,23 @@ def detect_document_edges_advanced(image_bytes):
         return None
 
 def main():
-    # Page configuration
+    # Page configuration with Unicode support
     st.set_page_config(
         page_title="Receipt Scanner: OCR+LLM vs Direct LLM",
         page_icon="🧾",
         layout="wide",
         initial_sidebar_state="expanded"
     )
+    
+    # Ensure UTF-8 encoding for the entire app
+    import locale
+    try:
+        locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+    except locale.Error:
+        try:
+            locale.setlocale(locale.LC_ALL, 'C.UTF-8')
+        except locale.Error:
+            pass  # Keep default locale if UTF-8 is not available
     
 
     
@@ -921,13 +1028,62 @@ def main():
         # OCR+LLM Results Tab
         if tab1 and hasattr(st.session_state, 'ocr_llm_response'):
             with tab1:
-                st.markdown("### 🔍➡️🤖 OCR+LLM Analysis (Vision → Gemini)")
-                st.markdown("*Analysis based on OCR-extracted text processed by AI*")
+                st.markdown("### 📊 Comparison: OCR+LLM vs Direct LLM")
+                st.markdown("*Side-by-side comparison of both analysis methods*")
                 
-                if st.session_state.ocr_llm_response:
-                    # Display the raw LLM response in a formatted container
-                    st.markdown("#### 📋 Analysis Results")
-                    st.markdown(f"```\n{st.session_state.ocr_llm_response}\n```")
+                # Display OCR+LLM and Direct LLM outputs side by side
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("#### 🔍➡️🤖 OCR+LLM Analysis")
+                    if st.session_state.ocr_llm_response:
+                        try:
+                            # Ensure proper UTF-8 encoding for display
+                            display_text = st.session_state.ocr_llm_response.encode('utf-8').decode('utf-8')
+                            st.text_area(
+                                "Analysis from OCR → LLM pipeline:",
+                                value=display_text,
+                                height=400,
+                                disabled=True,
+                                key="ocr_llm_output_display"
+                            )
+                        except:
+                            # Fallback to original text if encoding fails
+                            st.text_area(
+                                "Analysis from OCR → LLM pipeline:",
+                                value=st.session_state.ocr_llm_response,
+                                height=400,
+                                disabled=True,
+                                key="ocr_llm_output_display_fallback"
+                            )
+                    else:
+                        st.info("OCR+LLM analysis not available")
+                
+                with col2:
+                    st.markdown("#### 🤖 Direct LLM Analysis")
+                    if hasattr(st.session_state, 'direct_llm_response') and st.session_state.direct_llm_response:
+                        try:
+                            # Ensure proper UTF-8 encoding for display
+                            display_text = st.session_state.direct_llm_response.encode('utf-8').decode('utf-8')
+                            st.text_area(
+                                "Analysis from direct image → LLM:",
+                                value=display_text,
+                                height=400,
+                                disabled=True,
+                                key="direct_llm_output_display"
+                            )
+                        except:
+                            # Fallback to original text if encoding fails
+                            st.text_area(
+                                "Analysis from direct image → LLM:",
+                                value=st.session_state.direct_llm_response,
+                                height=400,
+                                disabled=True,
+                                key="direct_llm_output_display_fallback"
+                            )
+                    else:
+                        st.info("Direct LLM analysis not available")
+                        st.caption("Run 'Direct LLM Analysis' to compare both methods")
         
         # Direct LLM Results Tab
         if tab2 and hasattr(st.session_state, 'direct_llm_response'):
@@ -936,9 +1092,15 @@ def main():
                 st.markdown("*Analysis based on direct image processing by AI*")
                 
                 if st.session_state.direct_llm_response:
-                    # Display the raw LLM response in a formatted container
+                    # Display the raw LLM response in a formatted container with Unicode support
                     st.markdown("#### 📋 Analysis Results")
-                    st.markdown(f"```\n{st.session_state.direct_llm_response}\n```")
+                    try:
+                        # Ensure proper UTF-8 encoding for display
+                        display_text = st.session_state.direct_llm_response.encode('utf-8').decode('utf-8')
+                        st.markdown(f"```\n{display_text}\n```")
+                    except:
+                        # Fallback to original text if encoding fails
+                        st.markdown(f"```\n{st.session_state.direct_llm_response}\n```")
         
         # Raw Data Tab
         if tab4:
